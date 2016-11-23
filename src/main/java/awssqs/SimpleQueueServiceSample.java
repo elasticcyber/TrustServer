@@ -1,24 +1,21 @@
 package awssqs;
 
-import java.util.List;
 import java.util.Map.Entry;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
-import com.amazonaws.services.sqs.AmazonSQS;
-import com.amazonaws.services.sqs.AmazonSQSClient;
-import com.amazonaws.services.sqs.model.CreateQueueRequest;
-import com.amazonaws.services.sqs.model.DeleteMessageRequest;
-import com.amazonaws.services.sqs.model.DeleteQueueRequest;
+import com.amazonaws.services.sqs.AmazonSQSAsync;
+import com.amazonaws.services.sqs.AmazonSQSAsyncClient;
+import com.amazonaws.services.sqs.buffered.AmazonSQSBufferedAsyncClient;
 import com.amazonaws.services.sqs.model.GetQueueUrlRequest;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
-import com.amazonaws.services.sqs.model.SendMessageRequest;
+import com.amazonaws.services.sqs.model.ReceiveMessageResult;
 
 public class SimpleQueueServiceSample {
 	
@@ -27,34 +24,28 @@ public class SimpleQueueServiceSample {
 		AWSCredentials credentials = null;
         try {
         	credentials = new BasicAWSCredentials("AKIAI4EBEC6FVC6YHROQ", "232eYRVzt/OZBdJX9h8Vw0oM8ui83TqgEGKsJj0a");
-            //credentials = new ProfileCredentialsProvider().getCredentials();
         } catch (Exception e) {
-            throw new AmazonClientException(
-                    "Cannot load the credentials from the credential profiles file. " +
-                    "Please make sure that your credentials file is at the correct " +
-                    "location (~/.aws/credentials), and is in valid format.",
-                    e);
+        	System.out.println("Exception has occured: " + e.getMessage());
         }
         
-        AmazonSQS sqs = new AmazonSQSClient(credentials);
-        Region usEast2 = Region.getRegion(Regions.EU_WEST_1);
+        AmazonSQSAsync  sqs = new AmazonSQSAsyncClient (credentials);
+        sqs = new AmazonSQSBufferedAsyncClient(sqs);
+        Region usEast2 = Region.getRegion(Regions.US_WEST_2);
         sqs.setRegion(usEast2);
 
         System.out.println("===========================================");
         System.out.println("Getting Started with Amazon SQS");
         System.out.println("===========================================\n");
-        
+
         try {
-            // Create a queue
-//            System.out.println("Creating a new SQS queue called MyQueue.\n");
-//            CreateQueueRequest createQueueRequest = new CreateQueueRequest("MyQueue");
-//            String myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
+
         	
         	// Get queue URL by queue name
-        	String queueName = "EliTesting";
+        	String queueName = "AIMSimpleQ";
         	GetQueueUrlRequest getQueueUrlRequest = new GetQueueUrlRequest(queueName);
         	String myQueueUrl = sqs.getQueueUrl(getQueueUrlRequest).getQueueUrl();
-        	        	
+	
+        	
             // List queues
             System.out.println("Listing all queues in your account.\n");
             for (String queueUrl : sqs.listQueues().getQueueUrls()) {
@@ -62,37 +53,52 @@ public class SimpleQueueServiceSample {
             }
             System.out.println();
             
-         // Send a message
+          //Send a message
 //            System.out.println("Sending a message to " + queueName + ".\n");
-//            sqs.sendMessage(new SendMessageRequest(myQueueUrl, "5eaae023-8d31-4449-bb56-2bae34544ad2"));
+//            sqs.sendMessage(new SendMessageRequest(myQueueUrl, "Eli new message"));
+            
+            
             
          // Receive messages
-            System.out.println("Receiving messages from " + queueName + ".\n");
-            ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(myQueueUrl);
-            List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
-            for (Message message : messages) {
-                System.out.println("  Message");
-                System.out.println("    MessageId:     " + message.getMessageId());
-                System.out.println("    ReceiptHandle: " + message.getReceiptHandle());
-                System.out.println("    MD5OfBody:     " + message.getMD5OfBody());
-                System.out.println("    Body:          " + message.getBody());
-                for (Entry<String, String> entry : message.getAttributes().entrySet()) {
-                    System.out.println("  Attribute");
-                    System.out.println("    Name:  " + entry.getKey());
-                    System.out.println("    Value: " + entry.getValue());
-                }
+            while (true){
+	            System.out.println("Receiving messages from " + queueName + ".\n");
+	            ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(myQueueUrl).withMaxNumberOfMessages(100).withWaitTimeSeconds(10);  
+	            sqs.receiveMessageAsync(receiveMessageRequest,new AsyncHandler<ReceiveMessageRequest, ReceiveMessageResult>() {
+					
+					@Override
+					public void onSuccess(ReceiveMessageRequest arg0, ReceiveMessageResult arg1) {
+						 for (Message message : arg1.getMessages()) {
+				                System.out.println("  Message");
+				                System.out.println("    MessageId:     " + message.getMessageId());
+				                System.out.println("    ReceiptHandle: " + message.getReceiptHandle());
+				                System.out.println("    MD5OfBody:     " + message.getMD5OfBody());
+				                System.out.println("    Body:          " + message.getBody());
+				                for (Entry<String, String> entry : message.getAttributes().entrySet()) {
+				                    System.out.println("  Attribute");
+				                    System.out.println("    Name:  " + entry.getKey());
+				                    System.out.println("    Value: " + entry.getValue());
+				                }
+				            }
+						 
+						//Delete a message
+//				            System.out.println("Deleting a message.\n");
+//				            String messageReceiptHandle = message.getReceiptHandle();
+//				            sqs.deleteMessage(new DeleteMessageRequest(myQueueUrl, messageReceiptHandle));
+					}
+					
+					@Override
+					public void onError(Exception arg0) {
+						System.out.println("  An Error has occured: " + arg0.getMessage());
+						
+					}
+				});
+	            			            
+	            System.out.println();
+	            Thread.sleep(1000);
             }
+
             
-            System.out.println();
 
-            // Delete a message
-//            System.out.println("Deleting a message.\n");
-//            String messageReceiptHandle = messages.get(0).getReceiptHandle();
-//            sqs.deleteMessage(new DeleteMessageRequest(myQueueUrl, messageReceiptHandle));
-
-            // Delete a queue
-//            System.out.println("Deleting the test queue.\n");
-//            sqs.deleteQueue(new DeleteQueueRequest(myQueueUrl));
             
         } catch (AmazonServiceException ase) {
             System.out.println("Caught an AmazonServiceException, which means your request made it " +
@@ -108,6 +114,7 @@ public class SimpleQueueServiceSample {
                     "being able to access the network.");
             System.out.println("Error Message: " + ace.getMessage());
         }
+        
 
 
 		
