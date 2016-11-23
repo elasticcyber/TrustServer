@@ -23,7 +23,7 @@ public class SimpleQueueServiceSample {
 		
 		AWSCredentials credentials = null;
         try {
-        	credentials = new BasicAWSCredentials("AKIAI4EBEC6FVC6YHROQ", "232eYRVzt/OZBdJX9h8Vw0oM8ui83TqgEGKsJj0a");
+        	credentials = new BasicAWSCredentials("", "");
         } catch (Exception e) {
         	System.out.println("Exception has occured: " + e.getMessage());
         }
